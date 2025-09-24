@@ -1,24 +1,74 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
-import type { Supplier } from '@/lib/types';
+import type { Supplier, Quote, QuoteProposal } from '@/lib/types';
 import SupplierList from '@/components/supplier-list';
 import SupplierForm from '@/components/supplier-form';
+import QuoteList from '@/components/quote-list';
+import QuoteComparison from '@/components/quote-comparison';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+// Sample data for Quotes
+const sampleProposals: QuoteProposal[] = [
+  {
+    id: 'prop1',
+    supplierName: 'Fornecedor Alpha',
+    pricePerUnit: 25.50,
+    shippingCost: 200.00,
+    minPurchaseQuantity: 100,
+    deliveryTimeInDays: 15,
+    isBestOption: true,
+  },
+  {
+    id: 'prop2',
+    supplierName: 'Estamparia Beta',
+    pricePerUnit: 27.00,
+    shippingCost: 150.00,
+    minPurchaseQuantity: 50,
+    deliveryTimeInDays: 10,
+    isBestOption: false,
+  },
+  {
+    id: 'prop3',
+    supplierName: 'Têxtil Gama',
+    pricePerUnit: 24.00,
+    shippingCost: 300.00,
+    minPurchaseQuantity: 200,
+    deliveryTimeInDays: 20,
+    isBestOption: false,
+  },
+];
+
+const sampleQuotes: Quote[] = [
+  {
+    id: 'quote1',
+    title: 'Cotação: Camisetas Pretas de Algodão',
+    proposals: sampleProposals,
+  }
+];
+
 
 export default function Home() {
+  // Supplier State
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
-  const [formState, setFormState] = useState<Partial<Supplier>>({});
-  const [searchTerm, setSearchTerm] = useState('');
+  const [supplierFormState, setSupplierFormState] = useState<Partial<Supplier>>({});
+  const [supplierSearchTerm, setSupplierSearchTerm] = useState('');
 
-  // Load suppliers from localStorage on initial render
+  // Quote State
+  const [quotes, setQuotes] = useState<Quote[]>(sampleQuotes);
+  const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(sampleQuotes.length > 0 ? sampleQuotes[0].id : null);
+
+
+  // --- Supplier Logic ---
+  // Load suppliers from localStorage
   useEffect(() => {
     try {
       const savedSuppliers = localStorage.getItem('zanvexis_suppliers');
       if (savedSuppliers) {
         const parsedSuppliers = JSON.parse(savedSuppliers);
         setSuppliers(parsedSuppliers);
-        // If there are suppliers, select the first one by default
         if (parsedSuppliers.length > 0 && !selectedSupplierId) {
           setSelectedSupplierId(parsedSuppliers[0].id);
         }
@@ -28,19 +78,20 @@ export default function Home() {
     }
   }, []);
 
-  // Save suppliers to localStorage whenever the list changes
+  // Save suppliers to localStorage
   useEffect(() => {
-    localStorage.setItem('zanvexis_suppliers', JSON.stringify(suppliers));
+    if (suppliers.length > 0) {
+      localStorage.setItem('zanvexis_suppliers', JSON.stringify(suppliers));
+    }
   }, [suppliers]);
   
-  // Update form state when a supplier is selected
+  // Update form when a supplier is selected
   useEffect(() => {
     if (selectedSupplierId) {
       const selected = suppliers.find(s => s.id === selectedSupplierId);
-      setFormState(selected || {});
+      setSupplierFormState(selected || {});
     } else {
-      // Clear form when no supplier is selected (i.e., adding a new one)
-      setFormState({});
+      setSupplierFormState({});
     }
   }, [selectedSupplierId, suppliers]);
 
@@ -49,7 +100,7 @@ export default function Home() {
     setSelectedSupplierId(supplierId);
   };
   
-  const handleAddNew = () => {
+  const handleAddNewSupplier = () => {
     const newSupplier: Supplier = {
       id: Date.now().toString(),
       companyName: 'Novo Fornecedor',
@@ -63,41 +114,42 @@ export default function Home() {
     setSelectedSupplierId(newSupplier.id);
   };
   
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleSupplierFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
-    setFormState(prev => ({ ...prev, [id]: value }));
+    setSupplierFormState(prev => ({ ...prev, [id]: value }));
   };
   
   const handleSaveSupplier = () => {
     if (!selectedSupplierId) return;
     setSuppliers(prev => 
-      prev.map(s => s.id === selectedSupplierId ? { ...s, ...formState } as Supplier : s)
+      prev.map(s => s.id === selectedSupplierId ? { ...s, ...supplierFormState } as Supplier : s)
     );
-    // Optionally, add a toast notification for success
   };
   
   const handleDeleteSupplier = () => {
     if (!selectedSupplierId) return;
-    setSuppliers(prev => prev.filter(s => s.id !== selectedSupplierId));
-    // Select the first supplier in the list, or null if the list is empty
     const remainingSuppliers = suppliers.filter(s => s.id !== selectedSupplierId);
+    setSuppliers(remainingSuppliers);
     setSelectedSupplierId(remainingSuppliers.length > 0 ? remainingSuppliers[0].id : null);
   };
   
-  const handleCancel = () => {
-    // Re-fetch the original data for the selected supplier to discard changes
+  const handleCancelSupplierChanges = () => {
     if(selectedSupplierId) {
         const selected = suppliers.find(s => s.id === selectedSupplierId);
-        setFormState(selected || {});
+        setSupplierFormState(selected || {});
     }
   };
 
   const selectedSupplier = suppliers.find(s => s.id === selectedSupplierId) ?? null;
 
   const filteredSuppliers = suppliers.filter(supplier =>
-    (supplier.companyName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-    (supplier.contactName?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+    (supplier.companyName?.toLowerCase() || '').includes(supplierSearchTerm.toLowerCase()) ||
+    (supplier.contactName?.toLowerCase() || '').includes(supplierSearchTerm.toLowerCase())
   );
+  
+  // --- Quote Logic ---
+  const selectedQuote = quotes.find(q => q.id === selectedQuoteId) ?? null;
+
 
   return (
     <div className="bg-background min-h-screen text-foreground">
@@ -105,28 +157,54 @@ export default function Home() {
         <h1 className="font-headline text-3xl md:text-4xl font-bold mb-8">
           Central de Compras Inteligente
         </h1>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1">
-            <SupplierList 
-              suppliers={filteredSuppliers}
-              selectedSupplierId={selectedSupplierId}
-              onSelectSupplier={handleSelectSupplier}
-              onAddNew={handleAddNew}
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-            />
-          </div>
-          <div className="lg:col-span-2">
-            <SupplierForm 
-              supplier={selectedSupplier} 
-              formState={formState}
-              onFormChange={handleFormChange}
-              onSave={handleSaveSupplier}
-              onDelete={handleDeleteSupplier}
-              onCancel={handleCancel}
-            />
-          </div>
-        </div>
+        
+        <Tabs defaultValue="suppliers" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
+            <TabsTrigger value="suppliers">Fornecedores</TabsTrigger>
+            <TabsTrigger value="quotes">Cotações</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="suppliers" className="mt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-1">
+                <SupplierList 
+                  suppliers={filteredSuppliers}
+                  selectedSupplierId={selectedSupplierId}
+                  onSelectSupplier={handleSelectSupplier}
+                  onAddNew={handleAddNewSupplier}
+                  searchTerm={supplierSearchTerm}
+                  setSearchTerm={setSupplierSearchTerm}
+                />
+              </div>
+              <div className="lg:col-span-2">
+                <SupplierForm 
+                  supplier={selectedSupplier} 
+                  formState={supplierFormState}
+                  onFormChange={handleSupplierFormChange}
+                  onSave={handleSaveSupplier}
+                  onDelete={handleDeleteSupplier}
+                  onCancel={handleCancelSupplierChanges}
+                />
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="quotes" className="mt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-1">
+                <QuoteList 
+                  quotes={quotes}
+                  selectedQuoteId={selectedQuoteId}
+                  onSelectQuote={setSelectedQuoteId}
+                  onAddNew={() => console.log('Add new quote')}
+                />
+              </div>
+              <div className="lg:col-span-2">
+                <QuoteComparison quote={selectedQuote} />
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

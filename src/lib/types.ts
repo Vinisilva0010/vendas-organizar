@@ -1,3 +1,4 @@
+
 export interface Supplier {
   id: string;
   companyName: string;
@@ -6,4 +7,20 @@ export interface Supplier {
   phone:string;
   products: string;
   notes: string;
+}
+
+export interface QuoteProposal {
+  id: string;
+  supplierName: string;
+  pricePerUnit: number;
+  shippingCost: number;
+  minPurchaseQuantity: number;
+  deliveryTimeInDays: number;
+  isBestOption?: boolean;
+}
+
+export interface Quote {
+  id: string;
+  title: string;
+  proposals: QuoteProposal[];
 }
