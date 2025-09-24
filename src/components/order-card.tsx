@@ -17,7 +17,6 @@ interface OrderCardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const OrderCard = React.forwardRef<HTMLDivElement, OrderCardProps>(
   ({ order, isDragging, onDelete, ...props }, ref) => {
-    // Adiciona a correção de fuso horário para garantir que a data não mude
     const orderDate = new Date(order.orderDate);
     const correctedOrderDate = new Date(orderDate.valueOf() + orderDate.getTimezoneOffset() * 60 * 1000);
 
@@ -25,19 +24,19 @@ const OrderCard = React.forwardRef<HTMLDivElement, OrderCardProps>(
       <div ref={ref} {...props}>
         <Card 
           className={cn(
-            "cursor-grab transition-all duration-200 hover:shadow-md hover:border-primary/50 bg-card group",
-            isDragging && "ring-2 ring-accent shadow-xl rotate-3"
+            "cursor-grab transition-all duration-200 hover:shadow-lg hover:border-primary/50 bg-card group border",
+            isDragging && "ring-2 ring-primary shadow-2xl rotate-3"
           )}
         >
           <CardHeader className="p-3 pb-2 relative">
-            <CardTitle className="text-sm font-semibold truncate pr-8">{order.supplierName}</CardTitle>
-            <CardDescription className="text-xs">{order.displayId}</CardDescription>
+            <CardTitle className="text-base font-semibold truncate pr-8">{order.supplierName}</CardTitle>
+            <CardDescription className="text-xs font-mono">{order.displayId}</CardDescription>
              <Button
               variant="ghost"
               size="icon"
-              className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute top-1 right-1 h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={(e) => {
-                e.stopPropagation(); // Impede o início do arraste
+                e.stopPropagation();
                 onDelete();
               }}
             >
@@ -46,9 +45,9 @@ const OrderCard = React.forwardRef<HTMLDivElement, OrderCardProps>(
           </CardHeader>
           <CardContent className="p-3 pt-0 text-xs text-muted-foreground space-y-1">
             <p>
-                Data: {format(correctedOrderDate, "dd/MM/yyyy", { locale: ptBR })}
+                Data: {format(correctedOrderDate, "dd/MM/yy", { locale: ptBR })}
             </p>
-            <p className="text-base font-bold text-foreground">
+            <p className="text-lg font-bold text-foreground font-mono">
                 {order.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </p>
           </CardContent>

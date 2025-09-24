@@ -18,7 +18,6 @@ export default function SupplierForm({ supplier, onSave, onDelete }: SupplierFor
   const [formData, setFormData] = useState(supplier);
 
   useEffect(() => {
-    // Atualiza o formulário se um fornecedor diferente for selecionado na lista
     setFormData(supplier);
   }, [supplier]);
 
@@ -29,36 +28,39 @@ export default function SupplierForm({ supplier, onSave, onDelete }: SupplierFor
 
   const handleSaveClick = () => {
     onSave(formData);
-    // Opcional: Adicionar um toast de sucesso aqui
   };
 
   const handleDeleteClick = () => {
-    if (window.confirm("Tem certeza que deseja deletar este fornecedor?")) {
+    if (window.confirm(`Tem certeza que deseja deletar o fornecedor "${supplier.companyName}"?`)) {
         onDelete();
     }
   }
 
   return (
-    <Card>
+    <Card className="bg-card/50">
       <CardHeader>
-        <CardTitle>Detalhes do Fornecedor</CardTitle>
+        <CardTitle className="font-mono text-2xl">Detalhes do Fornecedor</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="companyName">Nome da Empresa</Label>
-          <Input id="companyName" value={formData.companyName || ''} onChange={handleChange} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="companyName">Nome da Empresa</Label>
+            <Input id="companyName" value={formData.companyName || ''} onChange={handleChange} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="contactName">Nome do Contato</Label>
+            <Input id="contactName" value={formData.contactName || ''} onChange={handleChange} />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="contactName">Nome do Contato</Label>
-          <Input id="contactName" value={formData.contactName || ''} onChange={handleChange} />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" value={formData.email || ''} onChange={handleChange} />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="phone">Telefone</Label>
-          <Input id="phone" type="tel" value={formData.phone || ''} onChange={handleChange} />
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" type="email" value={formData.email || ''} onChange={handleChange} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="phone">Telefone</Label>
+            <Input id="phone" type="tel" value={formData.phone || ''} onChange={handleChange} />
+          </div>
         </div>
          <div className="space-y-2">
           <Label htmlFor="products">Produtos Fornecidos</Label>
@@ -66,10 +68,10 @@ export default function SupplierForm({ supplier, onSave, onDelete }: SupplierFor
         </div>
         <div className="space-y-2">
           <Label htmlFor="notes">Notas</Label>
-          <Textarea id="notes" value={formData.notes || ''} onChange={handleChange} />
+          <Textarea id="notes" value={formData.notes || ''} onChange={handleChange} rows={4} />
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between">
+      <CardFooter className="flex justify-between border-t pt-4 mt-4">
         <Button variant="destructive" onClick={handleDeleteClick}>Deletar</Button>
         <Button onClick={handleSaveClick}>Salvar Alterações</Button>
       </CardFooter>

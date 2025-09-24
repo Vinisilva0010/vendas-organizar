@@ -19,7 +19,7 @@ interface QuoteComparisonProps {
 
 export default function QuoteComparison({ quote, suppliers, onUpdateQuote }: QuoteComparisonProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newProposal, setNewProposal] = useState<Partial<Proposal>>({
+  const [newProposal, setNewProposal] = useState<Partial<Omit<Proposal, 'id' | 'supplierName' | 'isBestOption'>>>({
     supplierId: '',
     unitPrice: 0,
     shippingCost: 0,
@@ -41,7 +41,7 @@ export default function QuoteComparison({ quote, suppliers, onUpdateQuote }: Quo
       shippingCost: Number(newProposal.shippingCost || 0),
       moq: Number(newProposal.moq || 1),
       leadTime: Number(newProposal.leadTime || 0),
-      isBestOption: false, // O pai vai recalcular isso
+      isBestOption: false,
     };
     
     const updatedQuote = {
@@ -49,8 +49,8 @@ export default function QuoteComparison({ quote, suppliers, onUpdateQuote }: Quo
       proposals: [...quote.proposals, proposalToAdd]
     };
     onUpdateQuote(updatedQuote);
-    setIsModalOpen(false); // Fecha o modal
-    setNewProposal({ unitPrice: 0, shippingCost: 0, moq: 1, leadTime: 0 }); // Limpa o formulário
+    setIsModalOpen(false);
+    setNewProposal({ unitPrice: 0, shippingCost: 0, moq: 1, leadTime: 0 });
   };
 
   const handleRemoveProposal = (proposalId: string) => {
@@ -63,41 +63,40 @@ export default function QuoteComparison({ quote, suppliers, onUpdateQuote }: Quo
   
   const calculateRealCost = (proposal: Proposal) => {
     if (!proposal.moq || proposal.moq <= 0) return Infinity;
-    // Custo Real = Preço por Unidade + (Custo do Frete / Quantidade Mínima)
     return (proposal.unitPrice * proposal.moq + proposal.shippingCost) / proposal.moq;
   };
 
   return (
     <>
-      <Card className="h-full">
+      <Card className="h-full bg-card/50">
         <CardHeader>
-          <CardTitle>Comparativo: {quote.name}</CardTitle>
+          <CardTitle className="font-mono text-2xl">{quote.name}</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableHead>Fornecedor</TableHead>
                 <TableHead>Preço/Unid.</TableHead>
                 <TableHead>Frete</TableHead>
                 <TableHead>QMP</TableHead>
                 <TableHead>Prazo</TableHead>
-                <TableHead>Custo Real/Unid.</TableHead>
+                <TableHead className='text-primary'>Custo Real/Unid.</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {quote.proposals.length > 0 ? quote.proposals.map((p) => (
-                <TableRow key={p.id} className={p.isBestOption ? 'bg-green-900/40' : ''}>
+                <TableRow key={p.id} className={p.isBestOption ? 'bg-accent/10 hover:bg-accent/20' : 'hover:bg-muted/30'}>
                   <TableCell className="font-medium">
                     {p.supplierName}
-                    {p.isBestOption && <Badge className="ml-2 bg-green-500 text-white">Melhor Opção</Badge>}
+                    {p.isBestOption && <Badge className="ml-2 bg-accent text-accent-foreground border-accent-foreground/50">Melhor Opção</Badge>}
                   </TableCell>
                   <TableCell>{p.unitPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                   <TableCell>{p.shippingCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                   <TableCell>{p.moq} unid.</TableCell>
                   <TableCell>{p.leadTime} dias</TableCell>
-                  <TableCell className="font-bold">{calculateRealCost(p).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                  <TableCell className="font-bold text-lg">{calculateRealCost(p).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => handleRemoveProposal(p.id)} className="text-muted-foreground hover:text-destructive">
                       <Trash2 className="h-4 w-4" />
@@ -105,7 +104,7 @@ export default function QuoteComparison({ quote, suppliers, onUpdateQuote }: Quo
                   </TableCell>
                 </TableRow>
               )) : (
-                <TableRow>
+                <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
                     Nenhuma proposta adicionada.
                   </TableCell>
@@ -119,11 +118,10 @@ export default function QuoteComparison({ quote, suppliers, onUpdateQuote }: Quo
         </CardFooter>
       </Card>
 
-      {/* Modal para Adicionar Proposta */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader><CardTitle>Adicionar Nova Proposta</CardTitle></CardHeader>
+          <Card className="w-full max-w-md bg-card border-primary/50">
+            <CardHeader><CardTitle className="font-mono">Adicionar Nova Proposta</CardTitle></CardHeader>
             <CardContent className="space-y-4">
                 <div className="space-y-2">
                     <Label>Fornecedor</Label>
@@ -136,7 +134,7 @@ export default function QuoteComparison({ quote, suppliers, onUpdateQuote }: Quo
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                      <Label htmlFor="unitPrice">Preço por Unidade (R$)</Label>
+                      <Label htmlFor="unitPrice">Preço/Unidade (R$)</Label>
                       <Input id="unitPrice" type="number" value={newProposal.unitPrice} onChange={e => setNewProposal(p => ({...p, unitPrice: Number(e.target.value)}))} />
                   </div>
                   <div className="space-y-2">

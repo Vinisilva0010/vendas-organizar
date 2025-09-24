@@ -25,8 +25,6 @@ export interface Quote {
   proposals: Proposal[];
 }
 
-// --- Módulo 3: Pedidos de Compra ---
-
 export type OrderStatus = 'placed' | 'shipped' | 'in-transit' | 'received';
 
 export interface OrderItem {
@@ -38,11 +36,11 @@ export interface OrderItem {
 
 export interface PurchaseOrder {
   id: string;
-  displayId: string; // Ex: #PEDIDO-001
+  displayId: string;
   supplierId: string;
   supplierName: string;
-  orderDate: string; // Formato YYYY-MM-DD
-  expectedDeliveryDate: string; // Formato YYYY-MM-DD
+  orderDate: string; 
+  expectedDeliveryDate: string;
   items: OrderItem[];
   totalValue: number;
   status: OrderStatus;

@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 const KANBAN_COLUMNS: { id: OrderStatus; title: string }[] = [
   { id: 'placed', title: 'Pedidos Realizados' },
@@ -33,7 +34,8 @@ const initialNewOrderState = {
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'suppliers' | 'quotes' | 'orders'>('suppliers');
-  
+  const { toast } = useToast();
+
   // Estado dos Fornecedores
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
@@ -47,7 +49,7 @@ export default function Home() {
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [newOrder, setNewOrder] = useState<Omit<PurchaseOrder, 'id' | 'displayId' | 'totalValue' | 'status' | 'supplierName'>>(initialNewOrderState);
-
+  
   // --- LÓGICA DE FORNECEDORES ---
   useEffect(() => {
     const savedSuppliers = localStorage.getItem('zanvexis_suppliers');
@@ -85,6 +87,7 @@ export default function Home() {
     setSuppliers(prev =>
       prev.map(s => s.id === selectedSupplierId ? { ...s, ...formState } as Supplier : s)
     );
+     toast({ title: "Fornecedor salvo!", description: "Os dados foram atualizados." });
   };
 
   const handleDeleteSupplier = (supplierId: string) => {
@@ -95,6 +98,7 @@ export default function Home() {
       }
       return remaining;
     });
+     toast({ title: "Fornecedor deletado.", variant: "destructive" });
   };
 
   const filteredSuppliers = useMemo(() =>
@@ -139,6 +143,7 @@ export default function Home() {
     setQuotes(prevQuotes =>
       prevQuotes.map(q => q.id === updatedQuote.id ? updatedQuote : q)
     );
+     toast({ title: "Proposta adicionada!", description: "A cotação foi atualizada." });
   };
   
   const handleDeleteQuote = (quoteId: string) => {
@@ -147,6 +152,7 @@ export default function Home() {
       if (selectedQuoteId === quoteId) {
         setSelectedQuoteId(remaining.length > 0 ? remaining[0].id : null);
       }
+       toast({ title: "Cotação deletada.", variant: "destructive" });
       return remaining;
     });
   };
@@ -160,7 +166,7 @@ export default function Home() {
     if (quote.proposals.length > 0) {
         let minCost = Infinity;
         quote.proposals.forEach(proposal => {
-            const realCost = (proposal.unitPrice * proposal.moq + proposal.shippingCost) / proposal.moq;
+            const realCost = proposal.moq > 0 ? (proposal.unitPrice * proposal.moq + proposal.shippingCost) / proposal.moq : Infinity;
             if (realCost < minCost) {
                 minCost = realCost;
                 bestProposalId = proposal.id;
@@ -220,19 +226,23 @@ export default function Home() {
   const handleSaveOrder = () => {
     const supplier = suppliers.find(s => s.id === newOrder.supplierId);
     if (!supplier || !newOrder.orderDate || !newOrder.expectedDeliveryDate) {
-      alert("Por favor, preencha todos os campos obrigatórios: Fornecedor, Data do Pedido e Previsão de Entrega.");
+      toast({
+        variant: "destructive",
+        title: "Campos obrigatórios",
+        description: "Por favor, preencha Fornecedor, Data do Pedido e Previsão de Entrega.",
+      });
       return;
     }
     const totalValue = newOrder.items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.unitPrice)), 0);
 
     const orderToSave: PurchaseOrder = {
       id: new Date().toISOString(),
-      displayId: `#PEDIDO-${String(orders.length + 1).padStart(3, '0')}`,
+      displayId: `#PEDIDO-${String(orders.length + 1).padStart(4, '0')}`,
       supplierId: supplier.id,
       supplierName: supplier.companyName,
       orderDate: newOrder.orderDate,
       expectedDeliveryDate: newOrder.expectedDeliveryDate,
-      items: newOrder.items.filter(item => item.productName), // Salva apenas itens com nome
+      items: newOrder.items.filter(item => item.productName),
       totalValue,
       status: 'placed',
     };
@@ -240,11 +250,13 @@ export default function Home() {
     setOrders(prev => [orderToSave, ...prev]);
     setIsOrderModalOpen(false);
     setNewOrder(initialNewOrderState);
+    toast({ title: "Pedido criado!", description: "Seu novo pedido foi adicionado ao Kanban." });
   };
   
   const handleDeleteOrder = (orderId: string) => {
     if (window.confirm("Tem certeza que deseja deletar este pedido? Esta ação não pode ser desfeita.")) {
       setOrders(prev => prev.filter(o => o.id !== orderId));
+      toast({ title: "Pedido deletado.", variant: "destructive" });
     }
   };
 
@@ -266,6 +278,7 @@ export default function Home() {
           : order
       )
     );
+     toast({ title: "Status do pedido atualizado!" });
   };
 
   const newOrderTotal = useMemo(() => {
@@ -283,12 +296,12 @@ export default function Home() {
   return (
     <div className="bg-background min-h-screen text-foreground">
       <main className="container mx-auto p-4 sm:p-6 lg:p-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-8 font-headline">
-          Central de Compras Inteligente
+        <h1 className="text-3xl md:text-4xl font-bold mb-8 font-mono tracking-tighter">
+          Zanvexis Buyer Central
         </h1>
         
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 md:w-[600px]">
+          <TabsList className="grid w-full grid-cols-3 md:w-[600px] bg-card border">
             <TabsTrigger value="suppliers">Fornecedores</TabsTrigger>
             <TabsTrigger value="quotes">Cotações</TabsTrigger>
             <TabsTrigger value="orders">Pedidos de Compra</TabsTrigger>
@@ -315,7 +328,12 @@ export default function Home() {
                     onDelete={() => handleDeleteSupplier(selectedSupplier.id)}
                   />
                 ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">Selecione ou crie um fornecedor.</div>
+                  <Card className="flex items-center justify-center h-full min-h-[400px] border-dashed">
+                    <div className="text-center text-muted-foreground">
+                      <p>Selecione um fornecedor na lista</p>
+                      <p className="text-sm">ou crie um novo para começar.</p>
+                    </div>
+                  </Card>
                 )}
               </div>
             </div>
@@ -341,14 +359,20 @@ export default function Home() {
                     onUpdateQuote={handleUpdateQuote}
                   />
                 ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">Selecione ou crie uma cotação.</div>
+                  <Card className="flex items-center justify-center h-full min-h-[400px] border-dashed">
+                    <div className="text-center text-muted-foreground">
+                      <p>Selecione uma cotação na lista</p>
+                      <p className="text-sm">ou crie uma nova para comparar.</p>
+                    </div>
+                  </Card>
                 )}
                </div>
             </div>
           </TabsContent>
 
           <TabsContent value="orders" className="mt-6">
-            <div className="mb-6">
+            <div className="mb-6 flex justify-between items-center">
+              <h2 className="text-2xl font-mono">Painel de Pedidos</h2>
               <Button size="lg" onClick={() => setIsOrderModalOpen(true)}>Criar Novo Pedido</Button>
             </div>
             <DragDropContext onDragEnd={onDragEnd}>
@@ -359,10 +383,10 @@ export default function Home() {
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`bg-muted/30 rounded-lg p-4 transition-colors ${snapshot.isDraggingOver ? 'bg-accent/20' : ''}`}
+                        className={`bg-card/50 rounded-lg p-4 transition-colors ${snapshot.isDraggingOver ? 'bg-accent/10' : ''}`}
                       >
-                        <h2 className="text-lg font-semibold mb-4 text-center">{column.title}</h2>
-                        <div className="space-y-4 min-h-[50vh]">
+                        <h3 className="text-lg font-semibold mb-4 text-center font-mono tracking-tight">{column.title} ({ordersByStatus[column.id].length})</h3>
+                        <div className="space-y-4 min-h-[60vh]">
                            {ordersByStatus[column.id].map((order, index) => (
                              <Draggable key={order.id} draggableId={order.id} index={index}>
                                {(provided, snapshot) => (
@@ -389,17 +413,16 @@ export default function Home() {
         </Tabs>
       </main>
 
-      {/* Modal para Adicionar Pedido */}
       {isOrderModalOpen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col">
-            <CardHeader><CardTitle>Criar Novo Pedido de Compra</CardTitle></CardHeader>
+          <Card className="w-full max-w-3xl max-h-[90vh] flex flex-col bg-card border-primary/50">
+            <CardHeader><CardTitle className='font-mono'>Criar Novo Pedido de Compra</CardTitle></CardHeader>
             <CardContent className="flex-grow overflow-y-auto space-y-4 pr-6 pl-2">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                      <Label>Fornecedor</Label>
+                      <Label>Fornecedor *</Label>
                       <Select value={newOrder.supplierId} onValueChange={value => setNewOrder(p => ({ ...p, supplierId: value }))}>
-                          <SelectTrigger><SelectValue placeholder="Selecione um fornecedor..." /></SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                           <SelectContent>
                               {suppliers.map(s => (
                                 <SelectItem key={s.id} value={s.id}>{s.companyName}</SelectItem>
@@ -408,22 +431,22 @@ export default function Home() {
                       </Select>
                   </div>
                    <div className="space-y-2">
-                      <Label htmlFor="orderDate">Data do Pedido</Label>
+                      <Label htmlFor="orderDate">Data do Pedido *</Label>
                       <Input id="orderDate" type="date" value={newOrder.orderDate} onChange={e => setNewOrder(p => ({...p, orderDate: e.target.value}))}/>
                   </div>
                    <div className="space-y-2">
-                      <Label htmlFor="expectedDeliveryDate">Previsão de Entrega</Label>
+                      <Label htmlFor="expectedDeliveryDate">Previsão de Entrega *</Label>
                       <Input id="expectedDeliveryDate" type="date" value={newOrder.expectedDeliveryDate} onChange={e => setNewOrder(p => ({...p, expectedDeliveryDate: e.target.value}))}/>
                   </div>
                 </div>
                 
-                <h3 className="font-semibold pt-4 border-t">Itens do Pedido</h3>
+                <h3 className="font-semibold pt-4 border-t font-mono">Itens do Pedido</h3>
                 <div className="space-y-3">
                   {newOrder.items.map((item, index) => (
-                    <div key={item.id} className="grid grid-cols-[1fr,80px,120px,40px] gap-2 items-center">
+                    <div key={item.id} className="grid grid-cols-[1fr,90px,130px,40px] gap-2 items-center">
                       <Input placeholder="Nome do Produto" value={item.productName} onChange={e => handleNewOrderItemChange(index, 'productName', e.target.value)} />
                       <Input type="number" placeholder="Qtd." value={item.quantity} onChange={e => handleNewOrderItemChange(index, 'quantity', Number(e.target.value))} min="1" />
-                      <Input type="number" placeholder="Preço Unit." value={item.unitPrice} onChange={e => handleNewOrderItemChange(index, 'unitPrice', Number(e.target.value))} min="0" step="0.01"/>
+                      <Input type="number" placeholder="Preço Unit. (R$)" value={item.unitPrice} onChange={e => handleNewOrderItemChange(index, 'unitPrice', Number(e.target.value))} min="0" step="0.01"/>
                       <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleRemoveNewOrderItem(index)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -433,8 +456,8 @@ export default function Home() {
                 </div>
 
                 <div className="pt-4 border-t text-right">
-                    <Label className="text-muted-foreground">Valor Total</Label>
-                    <p className="text-2xl font-bold">
+                    <Label className="text-muted-foreground font-mono">VALOR TOTAL</Label>
+                    <p className="text-3xl font-bold font-mono text-primary">
                       {newOrderTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </p>
                 </div>

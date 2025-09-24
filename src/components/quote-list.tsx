@@ -22,7 +22,7 @@ export default function QuoteList({
   onDeleteQuote,
 }: QuoteListProps) {
   return (
-    <Card className="h-full">
+    <Card className="h-full bg-card/50">
       <CardContent className="p-4 flex flex-col h-full">
         <Button className="w-full" onClick={onAddNew}>
           <Plus className="mr-2 h-4 w-4" />
@@ -34,9 +34,9 @@ export default function QuoteList({
               <div
                 key={quote.id}
                 onClick={() => onSelectQuote(quote.id)}
-                className={`p-3 rounded-md cursor-pointer border flex justify-between items-center transition-colors ${
+                className={`p-3 rounded-md cursor-pointer border flex justify-between items-center transition-colors group ${
                   selectedQuoteId === quote.id
-                    ? 'bg-primary text-primary-foreground border-primary'
+                    ? 'bg-primary text-primary-foreground border-primary/50'
                     : 'hover:bg-muted/50'
                 }`}
               >
@@ -47,7 +47,9 @@ export default function QuoteList({
                   className={`h-7 w-7 shrink-0 ${selectedQuoteId === quote.id ? 'text-primary-foreground/70 hover:text-destructive hover:bg-destructive/20' : 'text-muted-foreground hover:text-destructive'}`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDeleteQuote(quote.id);
+                    if (window.confirm(`Tem certeza que deseja deletar a cotação "${quote.name}"?`)) {
+                      onDeleteQuote(quote.id);
+                    }
                   }}
                 >
                   <Trash2 className="h-4 w-4" />
