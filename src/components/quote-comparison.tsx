@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import type { Quote, QuoteProposal, Supplier } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,20 +29,20 @@ const formatCurrency = (value: number) => {
 
 const ProposalModal = ({ quote, suppliers, onUpdateQuote }: { quote: Quote, suppliers: Supplier[], onUpdateQuote: (quote: Quote) => void }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [newProposal, setNewProposal] = useState<Partial<QuoteProposal>>({
+  const [newProposal, setNewProposal] = useState<Partial<Omit<QuoteProposal, 'id' | 'supplierName'>>>({
     pricePerUnit: 0,
     shippingCost: 0,
     minPurchaseQuantity: 1,
     deliveryTimeInDays: 1,
+    supplierId: '',
   });
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
 
   const handleSave = () => {
-    if (!selectedSupplierId) {
+    if (!newProposal.supplierId) {
       alert("Por favor, selecione um fornecedor.");
       return;
     }
-    const supplier = suppliers.find(s => s.id === selectedSupplierId);
+    const supplier = suppliers.find(s => s.id === newProposal.supplierId);
     if (!supplier) return;
 
     const proposal: QuoteProposal = {
@@ -68,8 +68,8 @@ const ProposalModal = ({ quote, suppliers, onUpdateQuote }: { quote: Quote, supp
         shippingCost: 0,
         minPurchaseQuantity: 1,
         deliveryTimeInDays: 1,
+        supplierId: '',
     });
-    setSelectedSupplierId(null);
   };
   
   return (
@@ -82,12 +82,12 @@ const ProposalModal = ({ quote, suppliers, onUpdateQuote }: { quote: Quote, supp
         </DialogTrigger>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Adicionar Nova Proposta</DialogTitle>
+                <DialogTitle>Adicionar Nova Proposta para {quote.title}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="supplier" className="text-right">Fornecedor</Label>
-                    <Select onValueChange={setSelectedSupplierId} value={selectedSupplierId || undefined}>
+                    <Select onValueChange={(value) => setNewProposal({...newProposal, supplierId: value})} value={newProposal.supplierId || ''}>
                         <SelectTrigger className="col-span-3">
                             <SelectValue placeholder="Selecione um fornecedor" />
                         </SelectTrigger>
@@ -108,11 +108,11 @@ const ProposalModal = ({ quote, suppliers, onUpdateQuote }: { quote: Quote, supp
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="minPurchaseQuantity" className="text-right">QMP</Label>
-                    <Input id="minPurchaseQuantity" type="number" value={newProposal.minPurchaseQuantity} onChange={e => setNewProposal({...newProposal, minPurchaseQuantity: parseInt(e.target.value)})} className="col-span-3" />
+                    <Input id="minPurchaseQuantity" type="number" min={1} value={newProposal.minPurchaseQuantity} onChange={e => setNewProposal({...newProposal, minPurchaseQuantity: parseInt(e.target.value, 10) || 1})} className="col-span-3" />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="deliveryTimeInDays" className="text-right">Entrega (dias)</Label>
-                    <Input id="deliveryTimeInDays" type="number" value={newProposal.deliveryTimeInDays} onChange={e => setNewProposal({...newProposal, deliveryTimeInDays: parseInt(e.target.value)})} className="col-span-3" />
+                    <Input id="deliveryTimeInDays" type="number" min={1} value={newProposal.deliveryTimeInDays} onChange={e => setNewProposal({...newProposal, deliveryTimeInDays: parseInt(e.target.value, 10) || 1})} className="col-span-3" />
                 </div>
             </div>
             <DialogFooter>
@@ -143,7 +143,7 @@ export default function QuoteComparison({ quote, suppliers, onUpdateQuote }: Quo
   };
 
   const calculateRealCost = (proposal: QuoteProposal) => {
-    if (proposal.minPurchaseQuantity <= 0) return Infinity; // Avoid division by zero
+    if (!proposal.minPurchaseQuantity || proposal.minPurchaseQuantity <= 0) return Infinity;
     return proposal.pricePerUnit + (proposal.shippingCost / proposal.minPurchaseQuantity);
   }
 
@@ -155,6 +155,7 @@ export default function QuoteComparison({ quote, suppliers, onUpdateQuote }: Quo
             type="text" 
             value={quote.title} 
             onChange={handleTitleChange}
+            onBlur={() => onUpdateQuote(quote)}
             className="text-2xl font-headline font-bold border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto"
         />
       </CardHeader>
@@ -175,31 +176,36 @@ export default function QuoteComparison({ quote, suppliers, onUpdateQuote }: Quo
                 </TableRow>
                 </TableHeader>
                 <TableBody>
-                {quote.proposals.map(proposal => (
-                    <TableRow key={proposal.id} className={proposal.isBestOption ? 'bg-green-500/10' : ''}>
-                        <TableCell className="font-medium">
-                            {proposal.supplierName}
-                            {proposal.isBestOption && (
-                                <Badge variant="secondary" className="ml-2 bg-green-200 text-green-900">Melhor Opção</Badge>
-                            )}
+                {quote.proposals.length > 0 ? (
+                    quote.proposals.map(proposal => (
+                        <TableRow key={proposal.id} className={proposal.isBestOption ? 'bg-green-500/10' : ''}>
+                            <TableCell className="font-medium">
+                                {proposal.supplierName}
+                                {proposal.isBestOption && (
+                                    <Badge variant="secondary" className="ml-2 bg-green-200 text-green-900">Melhor Opção</Badge>
+                                )}
+                            </TableCell>
+                            <TableCell className="text-right">{formatCurrency(proposal.pricePerUnit)}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(proposal.shippingCost)}</TableCell>
+                            <TableCell className="text-right">{proposal.minPurchaseQuantity}</TableCell>
+                            <TableCell className="text-right">{proposal.deliveryTimeInDays}</TableCell>
+                            <TableCell className="text-right font-bold text-accent-foreground">{formatCurrency(calculateRealCost(proposal))}</TableCell>
+                        </TableRow>
+                    ))
+                ) : (
+                    <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                            <p>Nenhuma proposta adicionada a esta cotação ainda.</p>
+                            <p className="text-sm">Clique em "Adicionar Proposta de Fornecedor" para começar.</p>
                         </TableCell>
-                        <TableCell className="text-right">{formatCurrency(proposal.pricePerUnit)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(proposal.shippingCost)}</TableCell>
-                        <TableCell className="text-right">{proposal.minPurchaseQuantity}</TableCell>
-                        <TableCell className="text-right">{proposal.deliveryTimeInDays}</TableCell>
-                        <TableCell className="text-right font-bold text-accent-foreground">{formatCurrency(calculateRealCost(proposal))}</TableCell>
                     </TableRow>
-                ))}
+                )}
                 </TableBody>
             </Table>
         </div>
-        {quote.proposals.length === 0 && (
-            <div className="text-center text-muted-foreground py-10">
-                <p>Nenhuma proposta adicionada a esta cotação ainda.</p>
-                <p className="text-sm">Clique em "Adicionar Proposta de Fornecedor" para começar.</p>
-            </div>
-        )}
       </CardContent>
     </Card>
   );
 }
+
+    

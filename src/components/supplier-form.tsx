@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Supplier } from '@/lib/types';
@@ -6,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Save, Trash2 } from 'lucide-react';
+import { Save, Trash2, X } from 'lucide-react';
 
 interface SupplierFormProps {
   supplier: Supplier | null;
@@ -18,6 +19,16 @@ interface SupplierFormProps {
 }
 
 export default function SupplierForm({ supplier, formState, onFormChange, onSave, onDelete, onCancel }: SupplierFormProps) {
+  if (!supplier) {
+      return (
+         <Card className="h-full flex flex-col items-center justify-center">
+            <CardContent>
+                <p className="text-muted-foreground">Selecione um fornecedor para ver os detalhes ou crie um novo.</p>
+            </CardContent>
+        </Card>
+      );
+  }
+
   const formKey = supplier ? supplier.id : 'new';
   
   return (
@@ -27,7 +38,7 @@ export default function SupplierForm({ supplier, formState, onFormChange, onSave
           Detalhes do Fornecedor
         </CardTitle>
         <CardDescription>
-          {supplier ? `Editando informações de ${supplier.companyName}` : 'Preencha os campos para adicionar um novo fornecedor.'}
+          {`Editando informações de ${formState.companyName || ''}`}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6 flex-grow">
@@ -61,13 +72,14 @@ export default function SupplierForm({ supplier, formState, onFormChange, onSave
         </div>
       </CardContent>
       <CardFooter className="flex justify-end gap-3 border-t pt-6 mt-4">
-        {supplier && (
-          <Button variant="destructive" className="mr-auto" onClick={onDelete}>
-            <Trash2 className="mr-2 h-4 w-4" />
-            Deletar
-          </Button>
-        )}
-        <Button variant="outline" onClick={onCancel}>Cancelar</Button>
+        <Button variant="destructive" className="mr-auto" onClick={onDelete}>
+          <Trash2 className="mr-2 h-4 w-4" />
+          Deletar
+        </Button>
+        <Button variant="outline" onClick={onCancel}>
+          <X className="mr-2 h-4 w-4" />
+          Cancelar
+        </Button>
         <Button className="bg-accent text-accent-foreground hover:bg-accent/90" onClick={onSave}>
           <Save className="mr-2 h-4 w-4" />
           Salvar
@@ -76,3 +88,5 @@ export default function SupplierForm({ supplier, formState, onFormChange, onSave
     </Card>
   );
 }
+
+    

@@ -28,7 +28,7 @@ export default function Home() {
     try {
       const savedSuppliers = localStorage.getItem('zanvexis_suppliers');
       if (savedSuppliers) {
-        const parsedSuppliers = JSON.parse(savedSuppliers);
+        const parsedSuppliers = JSON.parse(savedSuppliers) as Supplier[];
         setSuppliers(parsedSuppliers);
         if (parsedSuppliers.length > 0 && !selectedSupplierId) {
           setSelectedSupplierId(parsedSuppliers[0].id);
@@ -36,14 +36,15 @@ export default function Home() {
       }
     } catch (error) {
       console.error("Failed to parse suppliers from localStorage", error);
+      setSuppliers([]); // Reset if data is corrupt
     }
-  }, []);
+  }, []); // Only runs once on mount
 
   // Save suppliers to localStorage
   useEffect(() => {
-    // Check to prevent overwriting on initial empty state
+    // Only save when suppliers state is not the initial empty array
     if (suppliers.length > 0 || localStorage.getItem('zanvexis_suppliers')) {
-      localStorage.setItem('zanvexis_suppliers', JSON.stringify(suppliers));
+        localStorage.setItem('zanvexis_suppliers', JSON.stringify(suppliers));
     }
   }, [suppliers]);
   
@@ -53,6 +54,7 @@ export default function Home() {
       const selected = suppliers.find(s => s.id === selectedSupplierId);
       setSupplierFormState(selected || {});
     } else {
+      // Clear form if no supplier is selected
       setSupplierFormState({});
     }
   }, [selectedSupplierId, suppliers]);
@@ -72,7 +74,8 @@ export default function Home() {
       products: '',
       notes: ''
     };
-    setSuppliers(prev => [newSupplier, ...prev]);
+    const newSuppliers = [newSupplier, ...suppliers];
+    setSuppliers(newSuppliers);
     setSelectedSupplierId(newSupplier.id);
   };
   
@@ -94,6 +97,7 @@ export default function Home() {
     if (isConfirmed) {
       const remainingSuppliers = suppliers.filter(s => s.id !== selectedSupplierId);
       setSuppliers(remainingSuppliers);
+      // Select the first of the remaining suppliers, or null if none are left
       setSelectedSupplierId(remainingSuppliers.length > 0 ? remainingSuppliers[0].id : null);
     }
   };
@@ -118,16 +122,18 @@ export default function Home() {
     try {
       const savedQuotes = localStorage.getItem('zanvexis_quotes');
       if (savedQuotes) {
-        const parsedQuotes = JSON.parse(savedQuotes);
-        setQuotes(parsedQuotes);
-        if (parsedQuotes.length > 0 && !selectedQuoteId) {
-          setSelectedQuoteId(parsedQuotes[0].id);
+        const parsedQuotes = JSON.parse(savedQuotes) as Quote[];
+        const quotesWithBestOption = getUpdatedQuotesWithBestOption(parsedQuotes);
+        setQuotes(quotesWithBestOption);
+        if (quotesWithBestOption.length > 0 && !selectedQuoteId) {
+          setSelectedQuoteId(quotesWithBestOption[0].id);
         }
       }
     } catch (error) {
       console.error("Failed to parse quotes from localStorage", error);
+      setQuotes([]);
     }
-  }, []);
+  }, []); // Only runs once on mount
 
   // Save quotes to localStorage
   useEffect(() => {
@@ -144,7 +150,8 @@ export default function Home() {
         title: quoteName,
         proposals: []
       };
-      setQuotes(prev => [newQuote, ...prev]);
+      const newQuotes = [newQuote, ...quotes];
+      setQuotes(newQuotes);
       setSelectedQuoteId(newQuote.id);
     }
   };
@@ -157,7 +164,7 @@ export default function Home() {
   const getUpdatedQuotesWithBestOption = (currentQuotes: Quote[]) => {
     return currentQuotes.map(quote => {
       if (!quote.proposals || quote.proposals.length === 0) {
-        return { ...quote, proposals: quote.proposals.map(p => ({...p, isBestOption: false})) };
+        return { ...quote, proposals: quote.proposals?.map(p => ({...p, isBestOption: false})) || [] };
       }
 
       let bestProposalId: string | null = null;
@@ -179,10 +186,6 @@ export default function Home() {
       return { ...quote, proposals: updatedProposals };
     });
   };
-
-  useEffect(() => {
-    setQuotes(prevQuotes => getUpdatedQuotesWithBestOption(prevQuotes));
-  }, [quotes.length, selectedQuoteId]); // Re-calculate when quotes change
 
   const handleUpdateQuote = (updatedQuote: Quote) => {
       const updatedQuotes = quotes.map(q => q.id === updatedQuote.id ? updatedQuote : q);
@@ -254,3 +257,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
