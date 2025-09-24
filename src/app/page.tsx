@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import type { Supplier, Quote, PurchaseOrder, OrderStatus, OrderItem } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2 } from 'lucide-react';
+import { Trash2, BookOpen } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
@@ -296,9 +297,16 @@ export default function Home() {
   return (
     <div className="bg-background min-h-screen text-foreground">
       <main className="container mx-auto p-4 sm:p-6 lg:p-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-8 font-mono tracking-tighter">
-          Zanvexis Buyer Central
-        </h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold font-mono tracking-tighter">
+            Zanvexis Buyer Central
+          </h1>
+          <Link href="/guide" passHref>
+             <Button variant="outline" asChild>
+                <a><BookOpen className="mr-2"/> Ver Guia</a>
+             </Button>
+          </Link>
+        </div>
         
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full">
           <TabsList className="grid w-full grid-cols-3 md:w-[600px] bg-card border">
