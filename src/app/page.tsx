@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Supplier, Quote, Proposal as QuoteProposal, PurchaseOrder, OrderStatus, OrderItem } from '@/lib/types';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import type { Supplier, Quote, PurchaseOrder, OrderStatus, OrderItem } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SupplierList from '@/components/supplier-list'; 
 import SupplierForm from '@/components/supplier-form';
@@ -241,14 +242,36 @@ export default function Home() {
     setNewOrder(initialNewOrderState);
   };
 
+  const onDragEnd = (result: DropResult) => {
+    const { source, destination, draggableId } = result;
+
+    if (!destination) {
+      return;
+    }
+
+    if (source.droppableId === destination.droppableId) {
+      return;
+    }
+  
+    setOrders(prevOrders =>
+      prevOrders.map(order =>
+        order.id === draggableId
+          ? { ...order, status: destination.droppableId as OrderStatus }
+          : order
+      )
+    );
+  };
+
   const newOrderTotal = useMemo(() => {
     return newOrder.items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.unitPrice)), 0);
   }, [newOrder.items]);
 
-  const placedOrders = useMemo(() => orders.filter(o => o.status === 'placed'), [orders]);
-  const shippedOrders = useMemo(() => orders.filter(o => o.status === 'shipped'), [orders]);
-  const inTransitOrders = useMemo(() => orders.filter(o => o.status === 'in-transit'), [orders]);
-  const receivedOrders = useMemo(() => orders.filter(o => o.status === 'received'), [orders]);
+  const ordersByStatus = useMemo(() => {
+    return KANBAN_COLUMNS.reduce((acc, column) => {
+      acc[column.id] = orders.filter(o => o.status === column.id);
+      return acc;
+    }, {} as Record<OrderStatus, PurchaseOrder[]>);
+  }, [orders]);
 
 
   return (
@@ -322,23 +345,39 @@ export default function Home() {
             <div className="mb-6">
               <Button size="lg" onClick={() => setIsOrderModalOpen(true)}>Criar Novo Pedido</Button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[
-                { title: 'Pedidos Realizados', orders: placedOrders },
-                { title: 'Aguardando Envio', orders: shippedOrders },
-                { title: 'Em Trânsito', orders: inTransitOrders },
-                { title: 'Recebido', orders: receivedOrders },
-              ].map((column, index) => (
-                <div key={index} className="bg-muted/30 rounded-lg p-4">
-                  <h2 className="text-lg font-semibold mb-4 text-center">{column.title}</h2>
-                  <div className="space-y-4 min-h-[50vh]">
-                     {column.orders.map(order => (
-                       <OrderCard key={order.id} order={order} />
-                     ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <DragDropContext onDragEnd={onDragEnd}>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {KANBAN_COLUMNS.map((column) => (
+                  <Droppable key={column.id} droppableId={column.id}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`bg-muted/30 rounded-lg p-4 transition-colors ${snapshot.isDraggingOver ? 'bg-accent/20' : ''}`}
+                      >
+                        <h2 className="text-lg font-semibold mb-4 text-center">{column.title}</h2>
+                        <div className="space-y-4 min-h-[50vh]">
+                           {ordersByStatus[column.id].map((order, index) => (
+                             <Draggable key={order.id} draggableId={order.id} index={index}>
+                               {(provided, snapshot) => (
+                                 <OrderCard
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    order={order}
+                                    isDragging={snapshot.isDragging}
+                                 />
+                               )}
+                             </Draggable>
+                           ))}
+                           {provided.placeholder}
+                        </div>
+                      </div>
+                    )}
+                  </Droppable>
+                ))}
+              </div>
+            </DragDropContext>
           </TabsContent>
         </Tabs>
       </main>
