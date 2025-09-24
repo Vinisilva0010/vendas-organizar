@@ -207,5 +207,3 @@ export default function QuoteComparison({ quote, suppliers, onUpdateQuote }: Quo
     </Card>
   );
 }
-
-    
