@@ -1,23 +1,133 @@
 
 "use client";
 
-import type { Quote, QuoteProposal } from '@/lib/types';
+import { useState } from 'react';
+import type { Quote, QuoteProposal, Supplier } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface QuoteComparisonProps {
   quote: Quote | null;
+  suppliers: Supplier[];
+  onUpdateQuote: (quote: Quote) => void;
 }
 
 const formatCurrency = (value: number) => {
+  if (typeof value !== 'number' || isNaN(value)) {
+    return 'R$ 0,00';
+  }
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
-export default function QuoteComparison({ quote }: QuoteComparisonProps) {
+
+const ProposalModal = ({ quote, suppliers, onUpdateQuote }: { quote: Quote, suppliers: Supplier[], onUpdateQuote: (quote: Quote) => void }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [newProposal, setNewProposal] = useState<Partial<QuoteProposal>>({
+    pricePerUnit: 0,
+    shippingCost: 0,
+    minPurchaseQuantity: 1,
+    deliveryTimeInDays: 1,
+  });
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
+
+  const handleSave = () => {
+    if (!selectedSupplierId) {
+      alert("Por favor, selecione um fornecedor.");
+      return;
+    }
+    const supplier = suppliers.find(s => s.id === selectedSupplierId);
+    if (!supplier) return;
+
+    const proposal: QuoteProposal = {
+      id: Date.now().toString(),
+      supplierId: supplier.id,
+      supplierName: supplier.companyName,
+      pricePerUnit: Number(newProposal.pricePerUnit) || 0,
+      shippingCost: Number(newProposal.shippingCost) || 0,
+      minPurchaseQuantity: Number(newProposal.minPurchaseQuantity) || 1,
+      deliveryTimeInDays: Number(newProposal.deliveryTimeInDays) || 1,
+    };
+    
+    const updatedQuote = {
+      ...quote,
+      proposals: [...quote.proposals, proposal]
+    };
+
+    onUpdateQuote(updatedQuote);
+    setIsOpen(false);
+    // Reset form
+    setNewProposal({
+        pricePerUnit: 0,
+        shippingCost: 0,
+        minPurchaseQuantity: 1,
+        deliveryTimeInDays: 1,
+    });
+    setSelectedSupplierId(null);
+  };
+  
+  return (
+     <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>
+            <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar Proposta de Fornecedor
+            </Button>
+        </DialogTrigger>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Adicionar Nova Proposta</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="supplier" className="text-right">Fornecedor</Label>
+                    <Select onValueChange={setSelectedSupplierId} value={selectedSupplierId || undefined}>
+                        <SelectTrigger className="col-span-3">
+                            <SelectValue placeholder="Selecione um fornecedor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {suppliers.map(supplier => (
+                                <SelectItem key={supplier.id} value={supplier.id}>{supplier.companyName}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                 <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="pricePerUnit" className="text-right">Preço/Unid.</Label>
+                    <Input id="pricePerUnit" type="number" value={newProposal.pricePerUnit} onChange={e => setNewProposal({...newProposal, pricePerUnit: parseFloat(e.target.value)})} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="shippingCost" className="text-right">Frete</Label>
+                    <Input id="shippingCost" type="number" value={newProposal.shippingCost} onChange={e => setNewProposal({...newProposal, shippingCost: parseFloat(e.target.value)})} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="minPurchaseQuantity" className="text-right">QMP</Label>
+                    <Input id="minPurchaseQuantity" type="number" value={newProposal.minPurchaseQuantity} onChange={e => setNewProposal({...newProposal, minPurchaseQuantity: parseInt(e.target.value)})} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="deliveryTimeInDays" className="text-right">Entrega (dias)</Label>
+                    <Input id="deliveryTimeInDays" type="number" value={newProposal.deliveryTimeInDays} onChange={e => setNewProposal({...newProposal, deliveryTimeInDays: parseInt(e.target.value)})} className="col-span-3" />
+                </div>
+            </div>
+            <DialogFooter>
+                <DialogClose asChild>
+                    <Button variant="outline">Cancelar</Button>
+                </DialogClose>
+                <Button onClick={handleSave}>Salvar Proposta</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
+  );
+}
+
+
+export default function QuoteComparison({ quote, suppliers, onUpdateQuote }: QuoteComparisonProps) {
   if (!quote) {
     return (
       <Card className="h-full flex flex-col items-center justify-center">
@@ -28,8 +138,12 @@ export default function QuoteComparison({ quote }: QuoteComparisonProps) {
     );
   }
 
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onUpdateQuote({ ...quote, title: e.target.value });
+  };
+
   const calculateRealCost = (proposal: QuoteProposal) => {
-    if (proposal.minPurchaseQuantity === 0) return proposal.pricePerUnit;
+    if (proposal.minPurchaseQuantity <= 0) return Infinity; // Avoid division by zero
     return proposal.pricePerUnit + (proposal.shippingCost / proposal.minPurchaseQuantity);
   }
 
@@ -40,16 +154,13 @@ export default function QuoteComparison({ quote }: QuoteComparisonProps) {
             id="quoteTitle" 
             type="text" 
             value={quote.title} 
-            onChange={() => {}} // Will be implemented later
+            onChange={handleTitleChange}
             className="text-2xl font-headline font-bold border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto"
         />
       </CardHeader>
       <CardContent className="space-y-6 flex-grow">
         <div className="flex justify-start">
-            <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Adicionar Proposta de Fornecedor
-            </Button>
+            <ProposalModal quote={quote} suppliers={suppliers} onUpdateQuote={onUpdateQuote} />
         </div>
         <div className="border rounded-lg overflow-hidden">
             <Table>
@@ -82,6 +193,12 @@ export default function QuoteComparison({ quote }: QuoteComparisonProps) {
                 </TableBody>
             </Table>
         </div>
+        {quote.proposals.length === 0 && (
+            <div className="text-center text-muted-foreground py-10">
+                <p>Nenhuma proposta adicionada a esta cotação ainda.</p>
+                <p className="text-sm">Clique em "Adicionar Proposta de Fornecedor" para começar.</p>
+            </div>
+        )}
       </CardContent>
     </Card>
   );

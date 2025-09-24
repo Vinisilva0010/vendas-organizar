@@ -11,6 +11,7 @@ export interface Supplier {
 
 export interface QuoteProposal {
   id: string;
+  supplierId: string;
   supplierName: string;
   pricePerUnit: number;
   shippingCost: number;

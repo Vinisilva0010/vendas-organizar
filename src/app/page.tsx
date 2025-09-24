@@ -9,45 +9,6 @@ import QuoteList from '@/components/quote-list';
 import QuoteComparison from '@/components/quote-comparison';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-// Sample data for Quotes
-const sampleProposals: QuoteProposal[] = [
-  {
-    id: 'prop1',
-    supplierName: 'Fornecedor Alpha',
-    pricePerUnit: 25.50,
-    shippingCost: 200.00,
-    minPurchaseQuantity: 100,
-    deliveryTimeInDays: 15,
-    isBestOption: true,
-  },
-  {
-    id: 'prop2',
-    supplierName: 'Estamparia Beta',
-    pricePerUnit: 27.00,
-    shippingCost: 150.00,
-    minPurchaseQuantity: 50,
-    deliveryTimeInDays: 10,
-    isBestOption: false,
-  },
-  {
-    id: 'prop3',
-    supplierName: 'Têxtil Gama',
-    pricePerUnit: 24.00,
-    shippingCost: 300.00,
-    minPurchaseQuantity: 200,
-    deliveryTimeInDays: 20,
-    isBestOption: false,
-  },
-];
-
-const sampleQuotes: Quote[] = [
-  {
-    id: 'quote1',
-    title: 'Cotação: Camisetas Pretas de Algodão',
-    proposals: sampleProposals,
-  }
-];
-
 
 export default function Home() {
   // Supplier State
@@ -57,8 +18,8 @@ export default function Home() {
   const [supplierSearchTerm, setSupplierSearchTerm] = useState('');
 
   // Quote State
-  const [quotes, setQuotes] = useState<Quote[]>(sampleQuotes);
-  const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(sampleQuotes.length > 0 ? sampleQuotes[0].id : null);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
 
 
   // --- Supplier Logic ---
@@ -80,7 +41,8 @@ export default function Home() {
 
   // Save suppliers to localStorage
   useEffect(() => {
-    if (suppliers.length > 0) {
+    // Check to prevent overwriting on initial empty state
+    if (suppliers.length > 0 || localStorage.getItem('zanvexis_suppliers')) {
       localStorage.setItem('zanvexis_suppliers', JSON.stringify(suppliers));
     }
   }, [suppliers]);
@@ -128,9 +90,12 @@ export default function Home() {
   
   const handleDeleteSupplier = () => {
     if (!selectedSupplierId) return;
-    const remainingSuppliers = suppliers.filter(s => s.id !== selectedSupplierId);
-    setSuppliers(remainingSuppliers);
-    setSelectedSupplierId(remainingSuppliers.length > 0 ? remainingSuppliers[0].id : null);
+    const isConfirmed = window.confirm("Tem certeza que deseja deletar este fornecedor? Esta ação não pode ser desfeita.");
+    if (isConfirmed) {
+      const remainingSuppliers = suppliers.filter(s => s.id !== selectedSupplierId);
+      setSuppliers(remainingSuppliers);
+      setSelectedSupplierId(remainingSuppliers.length > 0 ? remainingSuppliers[0].id : null);
+    }
   };
   
   const handleCancelSupplierChanges = () => {
@@ -148,8 +113,84 @@ export default function Home() {
   );
   
   // --- Quote Logic ---
-  const selectedQuote = quotes.find(q => q.id === selectedQuoteId) ?? null;
+  // Load quotes from localStorage
+  useEffect(() => {
+    try {
+      const savedQuotes = localStorage.getItem('zanvexis_quotes');
+      if (savedQuotes) {
+        const parsedQuotes = JSON.parse(savedQuotes);
+        setQuotes(parsedQuotes);
+        if (parsedQuotes.length > 0 && !selectedQuoteId) {
+          setSelectedQuoteId(parsedQuotes[0].id);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to parse quotes from localStorage", error);
+    }
+  }, []);
 
+  // Save quotes to localStorage
+  useEffect(() => {
+    if (quotes.length > 0 || localStorage.getItem('zanvexis_quotes')) {
+      localStorage.setItem('zanvexis_quotes', JSON.stringify(quotes));
+    }
+  }, [quotes]);
+
+  const handleAddNewQuote = () => {
+    const quoteName = prompt("Qual o nome do item para a nova cotação?");
+    if (quoteName) {
+      const newQuote: Quote = {
+        id: Date.now().toString(),
+        title: quoteName,
+        proposals: []
+      };
+      setQuotes(prev => [newQuote, ...prev]);
+      setSelectedQuoteId(newQuote.id);
+    }
+  };
+
+  const calculateRealCost = (proposal: QuoteProposal) => {
+    if (proposal.minPurchaseQuantity <= 0) return Infinity; // Avoid division by zero
+    return proposal.pricePerUnit + (proposal.shippingCost / proposal.minPurchaseQuantity);
+  };
+
+  const getUpdatedQuotesWithBestOption = (currentQuotes: Quote[]) => {
+    return currentQuotes.map(quote => {
+      if (!quote.proposals || quote.proposals.length === 0) {
+        return { ...quote, proposals: quote.proposals.map(p => ({...p, isBestOption: false})) };
+      }
+
+      let bestProposalId: string | null = null;
+      let minCost = Infinity;
+
+      quote.proposals.forEach(proposal => {
+        const realCost = calculateRealCost(proposal);
+        if (realCost < minCost) {
+          minCost = realCost;
+          bestProposalId = proposal.id;
+        }
+      });
+      
+      const updatedProposals = quote.proposals.map(p => ({
+        ...p,
+        isBestOption: p.id === bestProposalId
+      }));
+
+      return { ...quote, proposals: updatedProposals };
+    });
+  };
+
+  useEffect(() => {
+    setQuotes(prevQuotes => getUpdatedQuotesWithBestOption(prevQuotes));
+  }, [quotes.length, selectedQuoteId]); // Re-calculate when quotes change
+
+  const handleUpdateQuote = (updatedQuote: Quote) => {
+      const updatedQuotes = quotes.map(q => q.id === updatedQuote.id ? updatedQuote : q);
+      const quotesWithBestOption = getUpdatedQuotesWithBestOption(updatedQuotes);
+      setQuotes(quotesWithBestOption);
+  }
+
+  const selectedQuote = quotes.find(q => q.id === selectedQuoteId) ?? null;
 
   return (
     <div className="bg-background min-h-screen text-foreground">
@@ -196,11 +237,15 @@ export default function Home() {
                   quotes={quotes}
                   selectedQuoteId={selectedQuoteId}
                   onSelectQuote={setSelectedQuoteId}
-                  onAddNew={() => console.log('Add new quote')}
+                  onAddNew={handleAddNewQuote}
                 />
               </div>
               <div className="lg:col-span-2">
-                <QuoteComparison quote={selectedQuote} />
+                <QuoteComparison 
+                  quote={selectedQuote}
+                  suppliers={suppliers}
+                  onUpdateQuote={handleUpdateQuote}
+                />
               </div>
             </div>
           </TabsContent>
