@@ -10,10 +10,14 @@ import { Save, Trash2 } from 'lucide-react';
 
 interface SupplierFormProps {
   supplier: Supplier | null;
+  formState: Partial<Supplier>;
+  onFormChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  onSave: () => void;
+  onDelete: () => void;
+  onCancel: () => void;
 }
 
-export default function SupplierForm({ supplier }: SupplierFormProps) {
-  // Use a key to force re-render when supplier changes, clearing the form's uncontrolled inputs
+export default function SupplierForm({ supplier, formState, onFormChange, onSave, onDelete, onCancel }: SupplierFormProps) {
   const formKey = supplier ? supplier.id : 'new';
   
   return (
@@ -30,41 +34,41 @@ export default function SupplierForm({ supplier }: SupplierFormProps) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label htmlFor="companyName">Nome da Empresa</Label>
-            <Input id="companyName" type="text" defaultValue={supplier?.companyName || ''} placeholder="Ex: Acme Inc." />
+            <Input id="companyName" type="text" value={formState.companyName || ''} onChange={onFormChange} placeholder="Ex: Acme Inc." />
           </div>
           <div className="space-y-2">
             <Label htmlFor="contactName">Nome do Contato</Label>
-            <Input id="contactName" type="text" defaultValue={supplier?.contactName || ''} placeholder="Ex: João da Silva" />
+            <Input id="contactName" type="text" value={formState.contactName || ''} onChange={onFormChange} placeholder="Ex: João da Silva" />
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" defaultValue={supplier?.email || ''} placeholder="contato@empresa.com" />
+            <Input id="email" type="email" value={formState.email || ''} onChange={onFormChange} placeholder="contato@empresa.com" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="phone">Telefone</Label>
-            <Input id="phone" type="tel" defaultValue={supplier?.phone || ''} placeholder="(00) 12345-6789" />
+            <Input id="phone" type="tel" value={formState.phone || ''} onChange={onFormChange} placeholder="(00) 12345-6789" />
           </div>
         </div>
         <div className="space-y-2">
           <Label htmlFor="products">Produtos Fornecidos</Label>
-          <Input id="products" type="text" defaultValue={supplier?.products || ''} placeholder="Separe os produtos por vírgula" />
+          <Input id="products" type="text" value={formState.products || ''} onChange={onFormChange} placeholder="Separe os produtos por vírgula" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="notes">Notas Importantes</Label>
-          <Textarea id="notes" defaultValue={supplier?.notes || ''} rows={4} placeholder="Detalhes de negociação, prazos, etc." />
+          <Textarea id="notes" value={formState.notes || ''} onChange={onFormChange} rows={4} placeholder="Detalhes de negociação, prazos, etc." />
         </div>
       </CardContent>
       <CardFooter className="flex justify-end gap-3 border-t pt-6 mt-4">
         {supplier && (
-          <Button variant="destructive" className="mr-auto">
+          <Button variant="destructive" className="mr-auto" onClick={onDelete}>
             <Trash2 className="mr-2 h-4 w-4" />
             Deletar
           </Button>
         )}
-        <Button variant="outline">Cancelar</Button>
-        <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
+        <Button variant="outline" onClick={onCancel}>Cancelar</Button>
+        <Button className="bg-accent text-accent-foreground hover:bg-accent/90" onClick={onSave}>
           <Save className="mr-2 h-4 w-4" />
           Salvar
         </Button>

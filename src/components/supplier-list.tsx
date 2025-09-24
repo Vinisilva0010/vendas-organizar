@@ -9,12 +9,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface SupplierListProps {
   suppliers: Supplier[];
-  selectedSupplier: Supplier | null;
-  onSelectSupplier: (supplier: Supplier) => void;
+  selectedSupplierId: string | null;
+  onSelectSupplier: (id: string) => void;
   onAddNew: () => void;
+  searchTerm: string;
+  setSearchTerm: (term: string) => void;
 }
 
-export default function SupplierList({ suppliers, selectedSupplier, onSelectSupplier, onAddNew }: SupplierListProps) {
+export default function SupplierList({ suppliers, selectedSupplierId, onSelectSupplier, onAddNew, searchTerm, setSearchTerm }: SupplierListProps) {
   return (
     <aside className="flex flex-col gap-4 h-full">
       <Button onClick={onAddNew} size="lg" className="w-full">
@@ -27,6 +29,8 @@ export default function SupplierList({ suppliers, selectedSupplier, onSelectSupp
           type="search"
           placeholder="Buscar fornecedor..."
           className="pl-10 h-11"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
       <ScrollArea className="flex-grow border rounded-lg h-[calc(100vh-250px)] lg:h-auto lg:max-h-[calc(100vh-220px)]">
@@ -35,8 +39,8 @@ export default function SupplierList({ suppliers, selectedSupplier, onSelectSupp
             <SupplierCard 
               key={supplier.id}
               supplier={supplier}
-              isSelected={selectedSupplier?.id === supplier.id}
-              onSelect={() => onSelectSupplier(supplier)}
+              isSelected={selectedSupplierId === supplier.id}
+              onSelect={() => onSelectSupplier(supplier.id)}
             />
           ))}
         </div>
