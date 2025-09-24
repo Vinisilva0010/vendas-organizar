@@ -241,6 +241,12 @@ export default function Home() {
     setIsOrderModalOpen(false);
     setNewOrder(initialNewOrderState);
   };
+  
+  const handleDeleteOrder = (orderId: string) => {
+    if (window.confirm("Tem certeza que deseja deletar este pedido? Esta ação não pode ser desfeita.")) {
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+    }
+  };
 
   const onDragEnd = (result: DropResult) => {
     const { source, destination, draggableId } = result;
@@ -366,6 +372,7 @@ export default function Home() {
                                     {...provided.dragHandleProps}
                                     order={order}
                                     isDragging={snapshot.isDragging}
+                                    onDelete={() => handleDeleteOrder(order.id)}
                                  />
                                )}
                              </Draggable>
