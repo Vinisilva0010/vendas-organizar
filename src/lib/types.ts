@@ -14,9 +14,9 @@ export interface Proposal {
   supplierName: string;
   unitPrice: number;
   shippingCost: number;
-  moq: number; // Quantidade Mínima de Pedido
-  leadTime: number; // Tempo de Entrega em dias
-  isBestOption: boolean;
+  moq: number;
+  leadTime: number;
+  isBestOption?: boolean;
 }
 
 export interface Quote {
@@ -27,14 +27,14 @@ export interface Quote {
 
 // --- Módulo 3: Pedidos de Compra ---
 
+export type OrderStatus = 'placed' | 'shipped' | 'in-transit' | 'received';
+
 export interface OrderItem {
   id: string;
   productName: string;
   quantity: number;
   unitPrice: number;
 }
-
-export type OrderStatus = 'placed' | 'shipped' | 'in-transit' | 'received';
 
 export interface PurchaseOrder {
   id: string;

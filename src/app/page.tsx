@@ -1,21 +1,21 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-// Tipos atualizados
 import type { Supplier, Quote, Proposal as QuoteProposal, PurchaseOrder, OrderStatus, OrderItem } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SupplierList from '@/components/supplier-list'; 
 import SupplierForm from '@/components/supplier-form';
 import QuoteList from '@/components/quote-list';
 import QuoteComparison from '@/components/quote-comparison';
-import OrderCard from '@/components/order-card'; // Importando o novo card de pedido
+import OrderCard from '@/components/order-card';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Trash2 } from 'lucide-react';
+import { format } from 'date-fns';
 
-// Colunas do Kanban
 const KANBAN_COLUMNS: { id: OrderStatus; title: string }[] = [
   { id: 'placed', title: 'Pedidos Realizados' },
   { id: 'shipped', title: 'Aguardando Envio' },
@@ -23,8 +23,14 @@ const KANBAN_COLUMNS: { id: OrderStatus; title: string }[] = [
   { id: 'received', title: 'Recebido' },
 ];
 
+const initialNewOrderState = {
+  supplierId: '',
+  orderDate: format(new Date(), 'yyyy-MM-dd'),
+  expectedDeliveryDate: '',
+  items: [{ id: new Date().toISOString(), productName: '', quantity: 1, unitPrice: 0 }],
+};
+
 export default function Home() {
-  // --- Estados da Aplicação ---
   const [activeTab, setActiveTab] = useState<'suppliers' | 'quotes' | 'orders'>('suppliers');
   
   // Estado dos Fornecedores
@@ -36,10 +42,10 @@ export default function Home() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
 
-  // Estado dos Pedidos de Compra (Módulo 3)
+  // Estado dos Pedidos de Compra
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
-
+  const [newOrder, setNewOrder] = useState<Omit<PurchaseOrder, 'id' | 'displayId' | 'totalValue' | 'status' | 'supplierName'>>(initialNewOrderState);
 
   // --- LÓGICA DE FORNECEDORES ---
   useEffect(() => {
@@ -55,15 +61,12 @@ export default function Home() {
         }
       } catch (error) {
         console.error("Failed to parse suppliers from localStorage", error);
-        setSuppliers([]); // Reseta em caso de erro
       }
     }
   }, []);
 
   useEffect(() => {
-    if (suppliers.length > 0) {
-      localStorage.setItem('zanvexis_suppliers', JSON.stringify(suppliers));
-    }
+    localStorage.setItem('zanvexis_suppliers', JSON.stringify(suppliers));
   }, [suppliers]);
 
   const handleAddNewSupplier = () => {
@@ -103,7 +106,6 @@ export default function Home() {
     suppliers.find(s => s.id === selectedSupplierId) ?? null,
     [selectedSupplierId, suppliers]);
 
-
   // --- LÓGICA DE COTAÇÕES ---
   useEffect(() => {
     const savedQuotes = localStorage.getItem('zanvexis_quotes');
@@ -112,21 +114,15 @@ export default function Home() {
         const parsed = JSON.parse(savedQuotes);
         if (Array.isArray(parsed)) {
           setQuotes(parsed);
-          if (parsed.length > 0 && !selectedQuoteId) {
-            setSelectedQuoteId(parsed[0].id);
-          }
         }
       } catch (error) {
         console.error("Failed to parse quotes from localStorage", error);
-        setQuotes([]);
       }
     }
   }, []);
 
   useEffect(() => {
-     if (quotes.length > 0) {
-        localStorage.setItem('zanvexis_quotes', JSON.stringify(quotes));
-     }
+     localStorage.setItem('zanvexis_quotes', JSON.stringify(quotes));
   }, [quotes]);
 
   const handleAddNewQuote = () => {
@@ -156,22 +152,20 @@ export default function Home() {
 
   const selectedQuote = useMemo(() => {
     if (!selectedQuoteId) return null;
-    
     const quote = quotes.find(q => q.id === selectedQuoteId);
     if (!quote) return null;
 
-    if (quote.proposals.length === 0) return quote;
-
     let bestProposalId: string | null = null;
-    let minCost = Infinity;
-
-    quote.proposals.forEach(proposal => {
-      const realCost = (proposal.unitPrice * proposal.moq + proposal.shippingCost) / proposal.moq;
-      if (realCost < minCost) {
-        minCost = realCost;
-        bestProposalId = proposal.id;
-      }
-    });
+    if (quote.proposals.length > 0) {
+        let minCost = Infinity;
+        quote.proposals.forEach(proposal => {
+            const realCost = (proposal.unitPrice * proposal.moq + proposal.shippingCost) / proposal.moq;
+            if (realCost < minCost) {
+                minCost = realCost;
+                bestProposalId = proposal.id;
+            }
+        });
+    }
 
     return {
       ...quote,
@@ -182,12 +176,79 @@ export default function Home() {
     };
   }, [selectedQuoteId, quotes]);
 
-  // Exemplo de dados estáticos para o Kanban
-  const staticOrders: PurchaseOrder[] = [
-    { id: '1', displayId: '#PEDIDO-001', supplierName: 'Fornecedor Alpha', orderDate: '2025-09-24', expectedDeliveryDate: '2025-10-10', totalValue: 1250.00, status: 'placed', items: [] , supplierId: '1' },
-    { id: '2', displayId: '#PEDIDO-002', supplierName: 'Indústrias Beta', orderDate: '2025-09-22', expectedDeliveryDate: '2025-10-05', totalValue: 800.50, status: 'shipped', items: [], supplierId: '2'  },
-    { id: '3', displayId: '#PEDIDO-003', supplierName: 'Fornecedor Gamma', orderDate: '2025-09-20', expectedDeliveryDate: '2025-09-30', totalValue: 3450.00, status: 'in-transit', items: [], supplierId: '3'  },
-  ];
+  // --- LÓGICA DE PEDIDOS ---
+  useEffect(() => {
+    const savedOrders = localStorage.getItem('zanvexis_orders');
+    if (savedOrders) {
+      try {
+        const parsed = JSON.parse(savedOrders);
+        if (Array.isArray(parsed)) {
+          setOrders(parsed);
+        }
+      } catch (error) {
+        console.error("Failed to parse orders from localStorage", error);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('zanvexis_orders', JSON.stringify(orders));
+  }, [orders]);
+
+  const handleNewOrderItemChange = (index: number, field: keyof OrderItem, value: string | number) => {
+    const updatedItems = [...newOrder.items];
+    const item = { ...updatedItems[index], [field]: value };
+    updatedItems[index] = item;
+    setNewOrder(prev => ({ ...prev, items: updatedItems }));
+  };
+
+  const handleAddNewItem = () => {
+    setNewOrder(prev => ({
+      ...prev,
+      items: [...prev.items, { id: new Date().toISOString(), productName: '', quantity: 1, unitPrice: 0 }],
+    }));
+  };
+
+  const handleRemoveNewOrderItem = (index: number) => {
+    setNewOrder(prev => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleSaveOrder = () => {
+    const supplier = suppliers.find(s => s.id === newOrder.supplierId);
+    if (!supplier || !newOrder.orderDate || !newOrder.expectedDeliveryDate) {
+      alert("Por favor, preencha todos os campos obrigatórios: Fornecedor, Data do Pedido e Previsão de Entrega.");
+      return;
+    }
+    const totalValue = newOrder.items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.unitPrice)), 0);
+
+    const orderToSave: PurchaseOrder = {
+      id: new Date().toISOString(),
+      displayId: `#PEDIDO-${String(orders.length + 1).padStart(3, '0')}`,
+      supplierId: supplier.id,
+      supplierName: supplier.companyName,
+      orderDate: newOrder.orderDate,
+      expectedDeliveryDate: newOrder.expectedDeliveryDate,
+      items: newOrder.items.filter(item => item.productName), // Salva apenas itens com nome
+      totalValue,
+      status: 'placed',
+    };
+    
+    setOrders(prev => [orderToSave, ...prev]);
+    setIsOrderModalOpen(false);
+    setNewOrder(initialNewOrderState);
+  };
+
+  const newOrderTotal = useMemo(() => {
+    return newOrder.items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.unitPrice)), 0);
+  }, [newOrder.items]);
+
+  const placedOrders = useMemo(() => orders.filter(o => o.status === 'placed'), [orders]);
+  const shippedOrders = useMemo(() => orders.filter(o => o.status === 'shipped'), [orders]);
+  const inTransitOrders = useMemo(() => orders.filter(o => o.status === 'in-transit'), [orders]);
+  const receivedOrders = useMemo(() => orders.filter(o => o.status === 'received'), [orders]);
 
 
   return (
@@ -262,12 +323,16 @@ export default function Home() {
               <Button size="lg" onClick={() => setIsOrderModalOpen(true)}>Criar Novo Pedido</Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {KANBAN_COLUMNS.map(column => (
-                <div key={column.id} className="bg-muted/30 rounded-lg p-4">
+              {[
+                { title: 'Pedidos Realizados', orders: placedOrders },
+                { title: 'Aguardando Envio', orders: shippedOrders },
+                { title: 'Em Trânsito', orders: inTransitOrders },
+                { title: 'Recebido', orders: receivedOrders },
+              ].map((column, index) => (
+                <div key={index} className="bg-muted/30 rounded-lg p-4">
                   <h2 className="text-lg font-semibold mb-4 text-center">{column.title}</h2>
                   <div className="space-y-4 min-h-[50vh]">
-                     {/* Renderização dinâmica dos pedidos virá aqui */}
-                     {staticOrders.filter(o => o.status === column.id).map(order => (
+                     {column.orders.map(order => (
                        <OrderCard key={order.id} order={order} />
                      ))}
                   </div>
@@ -275,7 +340,6 @@ export default function Home() {
               ))}
             </div>
           </TabsContent>
-
         </Tabs>
       </main>
 
@@ -284,51 +348,55 @@ export default function Home() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col">
             <CardHeader><CardTitle>Criar Novo Pedido de Compra</CardTitle></CardHeader>
-            <CardContent className="flex-grow overflow-y-auto space-y-4 pr-2">
+            <CardContent className="flex-grow overflow-y-auto space-y-4 pr-6 pl-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                       <Label>Fornecedor</Label>
-                      <Select>
+                      <Select value={newOrder.supplierId} onValueChange={value => setNewOrder(p => ({ ...p, supplierId: value }))}>
                           <SelectTrigger><SelectValue placeholder="Selecione um fornecedor..." /></SelectTrigger>
                           <SelectContent>
-                              <SelectItem value="1">Fornecedor Alpha</SelectItem>
-                              <SelectItem value="2">Indústrias Beta</SelectItem>
-                              {/* Será populado com a lista de fornecedores */}
+                              {suppliers.map(s => (
+                                <SelectItem key={s.id} value={s.id}>{s.companyName}</SelectItem>
+                              ))}
                           </SelectContent>
                       </Select>
                   </div>
                    <div className="space-y-2">
                       <Label htmlFor="orderDate">Data do Pedido</Label>
-                      <Input id="orderDate" type="date" />
+                      <Input id="orderDate" type="date" value={newOrder.orderDate} onChange={e => setNewOrder(p => ({...p, orderDate: e.target.value}))}/>
                   </div>
                    <div className="space-y-2">
                       <Label htmlFor="expectedDeliveryDate">Previsão de Entrega</Label>
-                      <Input id="expectedDeliveryDate" type="date" />
+                      <Input id="expectedDeliveryDate" type="date" value={newOrder.expectedDeliveryDate} onChange={e => setNewOrder(p => ({...p, expectedDeliveryDate: e.target.value}))}/>
                   </div>
                 </div>
                 
                 <h3 className="font-semibold pt-4 border-t">Itens do Pedido</h3>
-                <div className="space-y-2">
-                  {/* Linha de item estática */}
-                  <div className="grid grid-cols-[1fr,80px,120px,40px] gap-2 items-center">
-                    <Input placeholder="Nome do Produto" />
-                    <Input type="number" placeholder="Qtd." />
-                    <Input type="number" placeholder="Preço Unit." />
-                    <Button variant="ghost" size="sm" className="text-destructive">X</Button>
-                  </div>
-                   <Button variant="outline" size="sm">+ Adicionar Item</Button>
+                <div className="space-y-3">
+                  {newOrder.items.map((item, index) => (
+                    <div key={item.id} className="grid grid-cols-[1fr,80px,120px,40px] gap-2 items-center">
+                      <Input placeholder="Nome do Produto" value={item.productName} onChange={e => handleNewOrderItemChange(index, 'productName', e.target.value)} />
+                      <Input type="number" placeholder="Qtd." value={item.quantity} onChange={e => handleNewOrderItemChange(index, 'quantity', Number(e.target.value))} min="1" />
+                      <Input type="number" placeholder="Preço Unit." value={item.unitPrice} onChange={e => handleNewOrderItemChange(index, 'unitPrice', Number(e.target.value))} min="0" step="0.01"/>
+                      <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleRemoveNewOrderItem(index)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                   <Button variant="outline" size="sm" onClick={handleAddNewItem}>+ Adicionar Item</Button>
                 </div>
 
                 <div className="pt-4 border-t text-right">
                     <Label className="text-muted-foreground">Valor Total</Label>
-                    <p className="text-2xl font-bold">R$ 0,00</p>
-                    <small className="text-muted-foreground">Total será calculado aqui</small>
+                    <p className="text-2xl font-bold">
+                      {newOrderTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </p>
                 </div>
 
             </CardContent>
             <CardFooter className="justify-end space-x-2 border-t pt-4">
                 <Button variant="ghost" onClick={() => setIsOrderModalOpen(false)}>Cancelar</Button>
-                <Button>Salvar Pedido</Button>
+                <Button onClick={handleSaveOrder}>Salvar Pedido</Button>
             </CardFooter>
           </Card>
         </div>

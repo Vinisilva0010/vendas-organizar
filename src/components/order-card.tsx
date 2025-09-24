@@ -1,17 +1,20 @@
 "use client";
 
 import type { PurchaseOrder } from '@/lib/types';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface OrderCardProps {
   order: PurchaseOrder;
-  // onClick?: () => void;
 }
 
 export default function OrderCard({ order }: OrderCardProps) {
+  const orderDate = new Date(order.orderDate);
+  // Adiciona a correção de fuso horário para garantir que a data não mude
+  const correctedOrderDate = new Date(orderDate.valueOf() + orderDate.getTimezoneOffset() * 60 * 1000);
+
   return (
     <Card 
       className={cn(
@@ -24,7 +27,7 @@ export default function OrderCard({ order }: OrderCardProps) {
       </CardHeader>
       <CardContent className="p-3 pt-0 text-xs text-muted-foreground space-y-1">
          <p>
-            Data: {format(new Date(order.orderDate), "dd/MM/yyyy", { locale: ptBR })}
+            Data: {format(correctedOrderDate, "dd/MM/yyyy", { locale: ptBR })}
         </p>
          <p className="text-base font-bold text-foreground">
             {order.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
