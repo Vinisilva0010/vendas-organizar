@@ -302,8 +302,8 @@ export default function Home() {
             Zanvexis Buyer Central
           </h1>
           <Link href="/guide" passHref>
-             <Button variant="outline" asChild>
-                <a><BookOpen className="mr-2"/> Ver Guia</a>
+             <Button variant="outline">
+                <BookOpen className="mr-2"/> Ver Guia
              </Button>
           </Link>
         </div>

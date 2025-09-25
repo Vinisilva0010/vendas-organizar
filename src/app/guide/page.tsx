@@ -15,8 +15,8 @@ export default function GuidePage() {
                 Guia Rápido
             </h1>
              <Link href="/" passHref>
-                <Button variant="outline" asChild>
-                    <a><ArrowLeft className="mr-2" /> Voltar para a Aplicação</a>
+                <Button variant="outline">
+                    <ArrowLeft className="mr-2" /> Voltar para a Aplicação
                 </Button>
             </Link>
         </div>
